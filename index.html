@@ -281,22 +281,25 @@
 
   /* Canvas */
   .canvas {
-    background: var(--surface-soft);
-    border: 1px dashed var(--border);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.82), rgba(248,250,252,0.96)),
+      var(--surface-soft);
+    border: 1px solid var(--border);
     border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    display: block;
     padding: 24px;
     position: relative;
     overflow: auto;
     min-height: 0;
     height: 100%;
-    gap: 12px;
   }
   .canvas.has-poster {
-    justify-content: flex-start;
+    overflow: hidden;
+  }
+  .canvas:not(.has-poster) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .canvas-empty {
     color: var(--text-mute);
@@ -305,6 +308,117 @@
     line-height: 1.8;
   }
   .canvas-empty .big { font-size: 48px; margin-bottom: 12px; }
+
+  .preview-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 20px;
+    height: 100%;
+    min-height: 0;
+  }
+  .preview-main {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 14px;
+    min-width: 0;
+    min-height: 0;
+  }
+  .preview-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .preview-kicker {
+    font-size: 12px;
+    color: var(--text-mute);
+    margin-bottom: 4px;
+  }
+  .preview-title {
+    font-size: 17px;
+    font-weight: 650;
+    color: var(--text);
+    line-height: 1.25;
+  }
+  .source-chip {
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-soft);
+    border-radius: 14px;
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+  .preview-stage {
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+  }
+  .preview-side {
+    border-left: 1px solid var(--border);
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+    overflow: auto;
+  }
+  .side-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .side-title {
+    font-size: 12px;
+    font-weight: 650;
+    color: var(--text-soft);
+  }
+  .meta-list {
+    display: grid;
+    gap: 8px;
+  }
+  .meta-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-soft);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .meta-item strong {
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-align: right;
+  }
+  .side-thumbs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .preview-thumb {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--surface);
+    cursor: pointer;
+    aspect-ratio: 3 / 4;
+    padding: 0;
+  }
+  .preview-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .preview-thumb:hover,
+  .preview-thumb.active {
+    border-color: var(--primary);
+  }
 
   .poster-wrap {
     position: relative;
@@ -317,7 +431,7 @@
   .poster-wrap img {
     display: block;
     max-width: 100%;
-    max-height: 60vh;
+    max-height: calc(100vh - 230px);
     user-select: none;
   }
 
@@ -346,9 +460,10 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: stretch;
   }
   .poster-actions button {
+    flex: 1 1 100%;
     padding: 8px 14px;
     border: 1px solid var(--border);
     background: var(--surface);
@@ -376,7 +491,7 @@
     gap: 10px;
     flex-wrap: wrap;
     width: 100%;
-    max-width: 560px;
+    max-width: none;
   }
   .text-editor input[type="text"] {
     flex: 1;
@@ -632,6 +747,42 @@
   }
 
   /* ============ RESPONSIVE ============ */
+  @media (max-width: 1100px) {
+    .canvas.has-poster {
+      overflow: auto;
+    }
+    .preview-workspace {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      height: auto;
+      min-height: 100%;
+      overflow: visible;
+    }
+    .preview-main {
+      display: flex;
+      flex-direction: column;
+    }
+    .preview-stage {
+      min-height: auto;
+    }
+    .preview-side {
+      border-left: none;
+      border-top: 1px solid var(--border);
+      padding-left: 0;
+      padding-top: 14px;
+      overflow: visible;
+    }
+    .poster-wrap img {
+      max-height: 52vh;
+    }
+    .poster-actions button {
+      flex: 1 1 auto;
+    }
+    .side-thumbs {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
   @media (max-width: 900px) {
     header { padding: 12px 16px; }
     header h1 { font-size: 15px; }
@@ -1052,9 +1203,58 @@ function showNextGalleryPoster() {
   toast("已切换: " + item.title);
 }
 
+function getStyleLabel(styleId) {
+  const style = STYLES.find(s => s.id === styleId);
+  if (style) return style.name;
+  const filter = GALLERY_FILTERS.find(f => f.id === styleId);
+  return filter ? filter.name : "自由发挥";
+}
+
+function getCurrentGalleryItem() {
+  const visibleItems = getVisibleGalleryItems();
+  const visibleItem = visibleItems[currentGalleryIndex];
+  if (visibleItem && visibleItem.src === currentImageUrl) return visibleItem;
+  return GALLERY.find(item => item.src === currentImageUrl) || null;
+}
+
+function getRelatedGalleryItems() {
+  const currentItem = getCurrentGalleryItem();
+  if (!currentItem) return [];
+  const sameStyleItems = GALLERY.filter(item => item.style === currentItem.style);
+  return sameStyleItems.length ? sameStyleItems : getVisibleGalleryItems();
+}
+
+function buildPreviewThumbs() {
+  const items = getRelatedGalleryItems();
+  if (!items.length) return "";
+  const currentItem = getCurrentGalleryItem();
+  const start = Math.max(0, items.findIndex(item => item.src === currentItem?.src));
+  const total = Math.min(4, items.length);
+  const indexes = Array.from({ length: total }, (_, offset) => (start + offset) % items.length);
+  return indexes.map(index => {
+    const item = items[index];
+    const globalIndex = GALLERY.findIndex(g => g.src === item.src);
+    const active = item.src === currentImageUrl ? " active" : "";
+    return `
+      <button class="preview-thumb${active}" data-gallery-index="${globalIndex}" title="${escapeHtml(item.title)}">
+        <img src="${item.src}" alt="${escapeHtml(item.title)}" loading="lazy">
+      </button>`;
+  }).join("");
+}
+
 function drawCanvas() {
   if (!currentImageUrl) return;
   const changeBtnLabel = currentSource === "gallery" ? "🖼️ 换一张" : "🔄 再来一张";
+  const galleryItem = getCurrentGalleryItem();
+  const customName = document.getElementById("posterName").value.trim();
+  const previewTitle = customName || (galleryItem ? galleryItem.title : "AI 作品");
+  const sourceLabel = currentSource === "gallery" ? "精选图库" : "AI 生成";
+  const styleLabel = galleryItem ? getStyleLabel(galleryItem.style) : getStyleLabel(currentStyle);
+  const ratioLabel = currentSource === "gallery"
+    ? "竖版 2:3"
+    : (currentRatio === "portrait" ? "竖版 2:3" : "横版 3:2");
+  const modelLabel = currentSource === "gallery" ? "本地缓存" : "Seedream 5";
+  const previewThumbs = currentSource === "gallery" ? buildPreviewThumbs() : "";
   const textBlock = textOverlay ? `
     <div class="poster-text" id="posterText" style="
       left: ${textOverlay.xPct}%;
@@ -1064,16 +1264,48 @@ function drawCanvas() {
     ">${escapeHtml(textOverlay.text || "点击下方输入文字")}</div>` : "";
 
   canvas.innerHTML = `
-    <div class="poster-wrap" id="posterWrap">
-      <img id="posterImg" src="${currentImageUrl}" alt="海报" crossorigin="anonymous">
-      ${textBlock}
-    </div>
-    <div class="poster-actions">
-      <button id="textBtn">${textOverlay ? "✎ 编辑文字" : "✎ 加文字"}</button>
-      <button id="downloadBtn" class="primary">💾 下载</button>
-      <button id="changeBtn">${changeBtnLabel}</button>
-    </div>
-    <div id="textEditorMount"></div>`;
+    <div class="preview-workspace">
+      <div class="preview-main">
+        <div class="preview-top">
+          <div>
+            <div class="preview-kicker">作品预览</div>
+            <div class="preview-title">${escapeHtml(previewTitle)}</div>
+          </div>
+          <span class="source-chip">${sourceLabel}</span>
+        </div>
+        <div class="preview-stage">
+          <div class="poster-wrap" id="posterWrap">
+            <img id="posterImg" src="${currentImageUrl}" alt="海报" crossorigin="anonymous">
+            ${textBlock}
+          </div>
+        </div>
+        <div id="textEditorMount"></div>
+      </div>
+      <aside class="preview-side">
+        <div class="side-section">
+          <div class="side-title">快捷操作</div>
+          <div class="poster-actions">
+            <button id="textBtn">${textOverlay ? "✎ 编辑文字" : "✎ 加文字"}</button>
+            <button id="downloadBtn" class="primary">💾 下载</button>
+            <button id="changeBtn">${changeBtnLabel}</button>
+          </div>
+        </div>
+        <div class="side-section">
+          <div class="side-title">作品信息</div>
+          <div class="meta-list">
+            <div class="meta-item"><span>风格</span><strong>${escapeHtml(styleLabel)}</strong></div>
+            <div class="meta-item"><span>画幅</span><strong>${ratioLabel}</strong></div>
+            <div class="meta-item"><span>来源</span><strong>${sourceLabel}</strong></div>
+            <div class="meta-item"><span>模型</span><strong>${modelLabel}</strong></div>
+          </div>
+        </div>
+        ${previewThumbs ? `
+          <div class="side-section">
+            <div class="side-title">同类素材</div>
+            <div class="side-thumbs">${previewThumbs}</div>
+          </div>` : ""}
+      </aside>
+    </div>`;
 
   document.getElementById("textBtn").onclick = openTextEditor;
   document.getElementById("downloadBtn").onclick = () => downloadImage(currentImageUrl);
@@ -1084,6 +1316,15 @@ function drawCanvas() {
       sendBtn.click();
     }
   };
+  document.querySelectorAll(".preview-thumb").forEach(btn => {
+    btn.onclick = () => {
+      const item = GALLERY[Number(btn.dataset.galleryIndex)];
+      if (!item) return;
+      currentGalleryIndex = getVisibleGalleryItems().findIndex(g => g.src === item.src);
+      renderPoster(item.src, "gallery");
+      toast("已选择: " + item.title);
+    };
+  });
 }
 
 function escapeHtml(s) {
