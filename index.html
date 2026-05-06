@@ -839,6 +839,7 @@ let currentRatio = "portrait"; // portrait | landscape
 let isGenerating = false;
 let currentImageUrl = null;
 let currentSource = null; // "ai" | "gallery"
+let currentGalleryIndex = -1;
 let textOverlay = null; // { text, xPct, yPct, sizePct, color }
 
 // ============== UI INIT ==============
@@ -922,7 +923,7 @@ function renderGallery() {
            onerror="this.parentNode.innerHTML='<div style=\\'padding:20px;text-align:center;color:#94a3b8;font-size:12px;display:flex;align-items:center;justify-content:center;height:100%;\\'>素材加载失败</div>'">
       <span class="tag">${item.title}</span>`;
     div.onclick = () => {
-      renderPoster(item.src, "gallery");
+      renderGalleryPoster(item);
       toast("已选择: " + item.title);
       requestAnimationFrame(() => {
         canvas.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -934,6 +935,12 @@ function renderGallery() {
 
 renderGalleryFilters();
 renderGallery();
+
+function getVisibleGalleryItems() {
+  return galleryFilter === "all"
+    ? GALLERY
+    : GALLERY.filter(g => g.style === galleryFilter);
+}
 
 // ============== TOAST ==============
 function toast(msg, type = "info") {
@@ -1021,9 +1028,28 @@ function renderLoading() {
 function renderPoster(imgUrl, source) {
   currentImageUrl = imgUrl;
   currentSource = source || currentSource || "ai";
+  if (currentSource !== "gallery") currentGalleryIndex = -1;
   textOverlay = null;
   canvas.classList.add("has-poster");
   drawCanvas();
+}
+
+function renderGalleryPoster(item) {
+  const items = getVisibleGalleryItems();
+  currentGalleryIndex = Math.max(0, items.findIndex(g => g.src === item.src));
+  renderPoster(item.src, "gallery");
+}
+
+function showNextGalleryPoster() {
+  const items = getVisibleGalleryItems();
+  if (!items.length) {
+    toast("这个分类还没有素材", "error");
+    return;
+  }
+  currentGalleryIndex = (currentGalleryIndex + 1 + items.length) % items.length;
+  const item = items[currentGalleryIndex];
+  renderPoster(item.src, "gallery");
+  toast("已切换: " + item.title);
 }
 
 function drawCanvas() {
@@ -1053,7 +1079,7 @@ function drawCanvas() {
   document.getElementById("downloadBtn").onclick = () => downloadImage(currentImageUrl);
   document.getElementById("changeBtn").onclick = () => {
     if (currentSource === "gallery") {
-      document.querySelector('#tabs button[data-tab="gallery"]').click();
+      showNextGalleryPoster();
     } else {
       sendBtn.click();
     }
