@@ -753,8 +753,8 @@
 
 <script>
 // ============== CONFIG ==============
-const API_URL = "https://api.302.ai/302/images/generations";
-const MODEL = "gpt-image-2";
+const API_URL = "https://api.302.ai/doubao/images/generations";
+const MODEL = "doubao-seedream-5-0-260128";
 const KEY_STORAGE = "ai_poster_302_key";
 
 // 读取顺序: URL 参数 ?key=xxx > localStorage
@@ -1187,7 +1187,7 @@ async function generate() {
   sendBtn.disabled = true;
   renderLoading();
 
-  const size = currentRatio === "portrait" ? "1024x1536" : "1536x1024";
+  const size = currentRatio === "portrait" ? "1664x2496" : "2496x1664";
   const fullPrompt = buildPrompt(userText);
 
   try {
@@ -1202,8 +1202,8 @@ async function generate() {
         prompt: fullPrompt,
         n: 1,
         size: size,
-        quality: "medium",
-        response_format: "url"
+        response_format: "url",
+        watermark: false
       })
     });
 
