@@ -719,7 +719,6 @@
         <div class="gallery-grid" id="galleryGrid"></div>
       </div>
     </div>
-    </div>
 
     <!-- RIGHT CANVAS -->
     <div class="canvas" id="canvas">
@@ -900,7 +899,13 @@ function renderGallery() {
       <img src="${item.src}" alt="${item.title}" loading="lazy"
            onerror="this.parentNode.innerHTML='<div style=\\'padding:20px;text-align:center;color:#94a3b8;font-size:12px;display:flex;align-items:center;justify-content:center;height:100%;\\'>素材加载失败</div>'">
       <span class="tag">${item.title}</span>`;
-    div.onclick = () => renderPoster(item.src, "gallery");
+    div.onclick = () => {
+      renderPoster(item.src, "gallery");
+      toast("已选择: " + item.title);
+      requestAnimationFrame(() => {
+        canvas.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    };
     grid.appendChild(div);
   });
 }
