@@ -343,6 +343,115 @@
   }
   .example-item strong { color: var(--text); font-weight: 600; }
 
+  /* Prompt history */
+  .history-panel {
+    background: linear-gradient(180deg, #ffffff, #f9fdff);
+    border: 1px solid rgba(34, 184, 240, 0.26);
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: var(--shadow-soft);
+  }
+  .history-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .history-head .section-label {
+    margin-bottom: 0;
+    flex: 1;
+  }
+  .history-count {
+    font-size: 12px;
+    color: var(--text-mute);
+    flex-shrink: 0;
+  }
+  .history-clear {
+    border: 1px solid rgba(255, 122, 144, 0.30);
+    background: #fff7f9;
+    color: #d64d65;
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    flex-shrink: 0;
+  }
+  .history-clear:hover { background: var(--accent-soft); }
+  .history-list {
+    display: grid;
+    gap: 8px;
+    max-height: 260px;
+    overflow: auto;
+    padding-right: 2px;
+  }
+  .history-empty {
+    color: var(--text-mute);
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: center;
+    border: 1px dashed rgba(34, 184, 240, 0.26);
+    border-radius: 8px;
+    padding: 16px 10px;
+    background: rgba(255,255,255,0.70);
+  }
+  .history-item {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    border: 1px solid rgba(34, 184, 240, 0.22);
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    color: var(--text);
+    box-shadow: 0 3px 8px rgba(78, 117, 158, 0.08);
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+  }
+  .history-item:hover {
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+  }
+  .history-item img {
+    width: 58px;
+    height: 58px;
+    object-fit: cover;
+    border-radius: 7px;
+    background: var(--surface-soft);
+  }
+  .history-info {
+    min-width: 0;
+    display: grid;
+    gap: 4px;
+  }
+  .history-prompt {
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.35;
+    color: var(--text);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .history-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-mute);
+  }
+  .history-meta span {
+    background: var(--surface-soft);
+    border-radius: 7px;
+    padding: 2px 6px;
+  }
+
   /* Canvas */
   .canvas {
     background:
@@ -975,6 +1084,15 @@
             <strong>示例 3:</strong> 水墨山水,远山如黛,一叶扁舟
           </div>
         </div>
+
+        <div class="history-panel">
+          <div class="history-head">
+            <div class="section-label">🕘 创作记录</div>
+            <span class="history-count" id="historyCount">0/12</span>
+            <button class="history-clear" id="historyClear" type="button">清空</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </div>
       </div>
 
       <!-- Tab: Gallery -->
@@ -1020,6 +1138,8 @@
 const API_URL = "https://api.302.ai/doubao/images/generations";
 const MODEL = "doubao-seedream-5-0-260128";
 const KEY_STORAGE = "ai_poster_302_key";
+const HISTORY_STORAGE = "ai_poster_prompt_history_v1";
+const HISTORY_LIMIT = 12;
 
 // 读取顺序: URL 参数 ?key=xxx > localStorage
 function getApiKey() {
@@ -1081,9 +1201,10 @@ let currentStyle = "none";
 let currentRatio = "portrait"; // portrait | landscape
 let isGenerating = false;
 let currentImageUrl = null;
-let currentSource = null; // "ai" | "gallery"
+let currentSource = null; // "ai" | "gallery" | "history"
 let currentGalleryIndex = -1;
 let textOverlay = null; // { text, xPct, yPct, sizePct, color }
+let promptHistory = loadPromptHistory();
 
 // ============== UI INIT ==============
 const styleGrid = document.getElementById("styleGrid");
@@ -1184,6 +1305,123 @@ function getVisibleGalleryItems() {
     ? GALLERY
     : GALLERY.filter(g => g.style === galleryFilter);
 }
+
+// ============== PROMPT HISTORY ==============
+function loadPromptHistory() {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE);
+    const list = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list
+      .filter(item => item && item.prompt && item.imageUrl)
+      .slice(0, HISTORY_LIMIT);
+  } catch (err) {
+    console.warn("读取创作记录失败", err);
+    return [];
+  }
+}
+
+function savePromptHistory() {
+  try {
+    localStorage.setItem(HISTORY_STORAGE, JSON.stringify(promptHistory.slice(0, HISTORY_LIMIT)));
+  } catch (err) {
+    console.warn("保存创作记录失败", err);
+    toast("记录空间不够了,可以先清空旧记录", "error");
+  }
+}
+
+function getRatioLabel(ratio) {
+  return ratio === "landscape" ? "横版 3:2" : "竖版 2:3";
+}
+
+function formatHistoryTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function renderHistory() {
+  const list = document.getElementById("historyList");
+  const count = document.getElementById("historyCount");
+  const clear = document.getElementById("historyClear");
+  if (!list || !count || !clear) return;
+
+  count.textContent = `${promptHistory.length}/${HISTORY_LIMIT}`;
+  clear.disabled = promptHistory.length === 0;
+  clear.style.opacity = promptHistory.length ? "1" : "0.45";
+
+  if (!promptHistory.length) {
+    list.innerHTML = `<div class="history-empty">还没有记录<br>每次生成成功后会自动保存到这里</div>`;
+    return;
+  }
+
+  list.innerHTML = promptHistory.map(item => `
+    <button class="history-item" data-history-id="${escapeHtml(item.id)}" type="button">
+      <img src="${escapeHtml(item.imageUrl)}" alt="历史作品缩略图" loading="lazy">
+      <span class="history-info">
+        <span class="history-prompt">${escapeHtml(item.prompt)}</span>
+        <span class="history-meta">
+          <span>${escapeHtml(item.styleLabel || getStyleLabel(item.styleId))}</span>
+          <span>${escapeHtml(item.ratioLabel || getRatioLabel(item.ratio))}</span>
+          <span>${escapeHtml(formatHistoryTime(item.createdAt))}</span>
+        </span>
+      </span>
+    </button>`).join("");
+
+  document.querySelectorAll(".history-item").forEach(btn => {
+    btn.onclick = () => restoreHistoryItem(btn.dataset.historyId);
+  });
+}
+
+function addPromptHistory({ prompt, imageUrl, styleId, ratio }) {
+  const title = document.getElementById("posterName").value.trim();
+  const item = {
+    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    prompt,
+    imageUrl,
+    title,
+    styleId,
+    styleLabel: getStyleLabel(styleId),
+    ratio,
+    ratioLabel: getRatioLabel(ratio),
+    createdAt: new Date().toISOString()
+  };
+  promptHistory = [item, ...promptHistory].slice(0, HISTORY_LIMIT);
+  savePromptHistory();
+  renderHistory();
+}
+
+function restoreHistoryItem(id) {
+  const item = promptHistory.find(h => h.id === id);
+  if (!item) return;
+
+  promptInput.value = item.prompt;
+  document.getElementById("posterName").value = item.title || "";
+
+  currentStyle = item.styleId || "none";
+  document.querySelectorAll(".style-card").forEach(card => {
+    card.classList.toggle("active", card.dataset.style === currentStyle);
+  });
+
+  currentRatio = item.ratio || "portrait";
+  document.querySelectorAll("#ratioToggle button").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.ratio === currentRatio);
+  });
+
+  renderPoster(item.imageUrl, "history");
+  toast("已打开这次创作记录");
+}
+
+document.getElementById("historyClear").onclick = () => {
+  promptHistory = [];
+  savePromptHistory();
+  renderHistory();
+  toast("创作记录已清空");
+};
+
+renderHistory();
 
 // ============== TOAST ==============
 function toast(msg, type = "info") {
@@ -1340,11 +1578,13 @@ function drawCanvas() {
   const galleryItem = getCurrentGalleryItem();
   const customName = document.getElementById("posterName").value.trim();
   const previewTitle = customName || (galleryItem ? galleryItem.title : "AI 作品");
-  const sourceLabel = currentSource === "gallery" ? "精选图库" : "AI 生成";
+  const sourceLabel = currentSource === "gallery"
+    ? "精选图库"
+    : (currentSource === "history" ? "创作记录" : "AI 生成");
   const styleLabel = galleryItem ? getStyleLabel(galleryItem.style) : getStyleLabel(currentStyle);
   const ratioLabel = currentSource === "gallery"
     ? "竖版 2:3"
-    : (currentRatio === "portrait" ? "竖版 2:3" : "横版 3:2");
+    : getRatioLabel(currentRatio);
   const modelLabel = currentSource === "gallery" ? "本地缓存" : "Seedream 5";
   const previewThumbs = currentSource === "gallery" ? buildPreviewThumbs() : "";
   const textBlock = textOverlay ? `
@@ -1601,7 +1841,13 @@ async function generate() {
 
     if (!imgUrl) throw new Error("返回数据格式异常");
     renderPoster(imgUrl, "ai");
-    toast("生成成功!");
+    addPromptHistory({
+      prompt: userText,
+      imageUrl: imgUrl,
+      styleId: currentStyle,
+      ratio: currentRatio
+    });
+    toast("生成成功,已保存到创作记录!");
   } catch (err) {
     console.error(err);
     canvas.innerHTML = `
