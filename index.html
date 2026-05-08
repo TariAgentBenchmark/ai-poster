@@ -1159,12 +1159,13 @@ const STYLES = [
   { id: "none",      name: "自由发挥", emoji: "✨", prompt: "" },
   { id: "photo",     name: "摄影写实", emoji: "📷", prompt: "照片级写实风格,高清细节,专业摄影,自然光照,景深" },
   { id: "ink",       name: "水墨中国", emoji: "🖌️", prompt: "中国水墨画风格,淡雅留白,墨色层次丰富,传统宣纸质感" },
-  { id: "anime",     name: "动漫卡通", emoji: "🌸", prompt: "日式动漫风格,清新治愈,明亮色彩,细腻画风,参考新海诚、吉卜力" },
+  { id: "anime",     name: "动漫卡通", emoji: "🌸", prompt: "儿童卡通插画风格,清新治愈,明亮色彩,校园绘本质感,可爱友好" },
   { id: "guochao",   name: "国潮插画", emoji: "🏮", prompt: "国潮插画风格,中国传统纹样,鲜艳对比色,现代设计感" },
   { id: "cartoon3d", name: "3D 卡通", emoji: "🎈", prompt: "3D卡通渲染风格,皮克斯风格,圆润可爱,暖色调,电影质感" }
 ];
 
 const NEGATIVE_HINTS = "画面整洁,构图美观,适合儿童观看,内容积极向上,色彩明亮可爱";
+const TEXT_AVOIDANCE_HINTS = "画面中不要出现任何文字、字母、数字、日文、英文、拼音、标语、标题、水印、签名、对话框；只生成主体和背景，标题文字后续由网页加文字功能添加";
 
 // ============== GALLERY DATA ==============
 // 精选图库素材已内联到 HTML 中,方便单文件交付和离线使用
@@ -1494,6 +1495,7 @@ function buildPrompt(userText) {
   // 注入轻微随机性,避免千篇一律
   const seeds = ["丰富的细节", "独特的构图", "富有创意的视角", "鲜明的主体"];
   parts.push(seeds[Math.floor(Math.random() * seeds.length)]);
+  parts.push(TEXT_AVOIDANCE_HINTS);
   return parts.join(",");
 }
 
