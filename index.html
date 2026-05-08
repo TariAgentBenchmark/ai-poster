@@ -668,32 +668,40 @@
   }
   .poster-actions .primary:hover { background: linear-gradient(135deg, var(--primary-dark), #25bf71); }
 
+  .text-editor-mount {
+    margin-top: 2px;
+  }
   .text-editor {
-    padding: 10px 12px;
+    padding: 8px;
     background: rgba(255,255,255,0.92);
     border: 1px solid rgba(34, 184, 240, 0.24);
     border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
+    display: grid;
+    gap: 8px;
     width: 100%;
-    max-width: none;
     box-shadow: var(--shadow-soft);
   }
   .text-editor input[type="text"] {
-    flex: 1;
-    min-width: 120px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 7px 10px;
     border: 1px solid rgba(34, 184, 240, 0.28);
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 13px;
     font-family: inherit;
     outline: none;
   }
   .text-editor input[type="text"]:focus { border-color: var(--primary); }
-  .text-editor .ctrl { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-soft); }
-  .text-editor input[type="range"] { width: 80px; }
+  .text-editor .ctrl {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-soft);
+  }
+  .text-editor input[type="range"] { width: 106px; }
   .color-swatches { display: flex; gap: 4px; }
   .color-swatches button {
     width: 22px; height: 22px;
@@ -705,6 +713,30 @@
   .color-swatches button.active {
     border-color: var(--primary);
     transform: scale(1.15);
+  }
+  .text-editor-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .text-action {
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    border-radius: 7px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 650;
+  }
+  .text-action.primary {
+    border-color: var(--primary);
+    background: var(--primary);
+    color: white;
+  }
+  .text-action.danger {
+    color: var(--danger);
   }
 
   .loading {
@@ -1165,7 +1197,7 @@ const STYLES = [
 ];
 
 const NEGATIVE_HINTS = "画面整洁,构图美观,适合儿童观看,内容积极向上,色彩明亮可爱";
-const TEXT_AVOIDANCE_HINTS = "画面中不要出现任何文字、字母、数字、日文、英文、拼音、标语、标题、水印、签名、对话框；只生成主体和背景，标题文字后续由网页加文字功能添加";
+const TEXT_AVOIDANCE_HINTS = "底图中不要出现任何文字、字母、数字、日文、英文、拼音、标语、标题、水印、签名、对话框；只生成主体和背景，标题文字由网页文字层添加";
 
 // ============== GALLERY DATA ==============
 // 精选图库素材已内联到 HTML 中,方便单文件交付和离线使用
@@ -1387,6 +1419,7 @@ function addPromptHistory({ prompt, imageUrl, styleId, ratio }) {
     styleLabel: getStyleLabel(styleId),
     ratio,
     ratioLabel: getRatioLabel(ratio),
+    textOverlay: textOverlay && textOverlay.text.trim() ? { ...textOverlay } : null,
     createdAt: new Date().toISOString()
   };
   promptHistory = [item, ...promptHistory].slice(0, HISTORY_LIMIT);
@@ -1411,7 +1444,7 @@ function restoreHistoryItem(id) {
     btn.classList.toggle("active", btn.dataset.ratio === currentRatio);
   });
 
-  renderPoster(item.imageUrl, "history");
+  renderPoster(item.imageUrl, "history", item.textOverlay || null);
   toast("已打开这次创作记录");
 }
 
@@ -1499,6 +1532,38 @@ function buildPrompt(userText) {
   return parts.join(",");
 }
 
+function cleanRequestedText(raw) {
+  return String(raw || "")
+    .split(/[\n，。；;！!？?]/)[0]
+    .replace(/^[\s"'“”‘’「」《》【】]+|[\s"'“”‘’「」《》【】]+$/g, "")
+    .replace(/^(上面|里面|图中|海报上|文字|标题|标语|口号)(写|是|为)?/, "")
+    .replace(/(的)?(海报|图片|画面|作品).*$/, "")
+    .trim()
+    .slice(0, 20);
+}
+
+function extractRequestedPosterText(userText) {
+  const text = userText.trim();
+  const quoted = text.match(/(?:写上|写着|加上|加文字|标题|文字|标语|口号|海报上写|图中写|出现文字)[^"'“”‘’「」《》【】]{0,10}["'“‘「《【]([^"'“”‘’「」《》【】]{1,24})["'”’」》】]/);
+  if (quoted) return cleanRequestedText(quoted[1]);
+  const direct = text.match(/(?:写上|写着|加上|加文字|标题是|标题为|文字是|文字为|标语是|标语为|口号是|口号为|海报上写|图中写|出现文字)[：:\s]*(.{2,30})/);
+  if (direct) return cleanRequestedText(direct[1]);
+  return "";
+}
+
+function stripRequestedPosterText(userText) {
+  let text = userText.trim();
+  const quotedPattern = /[，,。；;\s]*(?:写上|写着|加上|加文字|标题|文字|标语|口号|海报上写|图中写|出现文字)[^"'“”‘’「」《》【】]{0,10}["'“‘「《【][^"'“”‘’「」《》【】]{1,24}["'”’」》】]/g;
+  const directPattern = /[，,。；;\s]*(?:写上|写着|加上|加文字|标题是|标题为|文字是|文字为|标语是|标语为|口号是|口号为|海报上写|图中写|出现文字)[：:\s]*[^，,。；;！!？?\n]{2,30}/g;
+  text = text.replace(quotedPattern, "").replace(directPattern, "");
+  text = text.replace(/\s{2,}/g, " ").replace(/^[，,。；;\s]+|[，,。；;\s]+$/g, "");
+  return text;
+}
+
+function makeTextOverlay(text) {
+  return { text, xPct: 50, yPct: 84, sizePct: 8, color: "#ffffff" };
+}
+
 function renderLoading() {
   canvas.classList.remove("has-poster");
   canvas.innerHTML = `
@@ -1508,11 +1573,12 @@ function renderLoading() {
     </div>`;
 }
 
-function renderPoster(imgUrl, source) {
+function renderPoster(imgUrl, source, overlay = null) {
   currentImageUrl = imgUrl;
   currentSource = source || currentSource || "ai";
   if (currentSource !== "gallery") currentGalleryIndex = -1;
-  textOverlay = null;
+  const nextOverlay = typeof overlay === "string" ? makeTextOverlay(overlay) : overlay;
+  textOverlay = nextOverlay && nextOverlay.text ? { ...nextOverlay } : null;
   canvas.classList.add("has-poster");
   drawCanvas();
 }
@@ -1613,7 +1679,6 @@ function drawCanvas() {
             ${textBlock}
           </div>
         </div>
-        <div id="textEditorMount"></div>
       </div>
       <aside class="preview-side">
         <div class="side-section">
@@ -1623,6 +1688,7 @@ function drawCanvas() {
             <button id="downloadBtn" class="primary">💾 下载</button>
             <button id="changeBtn">${changeBtnLabel}</button>
           </div>
+          <div id="textEditorMount" class="text-editor-mount"></div>
         </div>
         <div class="side-section">
           <div class="side-title">作品信息</div>
@@ -1689,8 +1755,10 @@ function openTextEditor() {
           ${colors.map(c => `<button data-color="${c}" style="background:${c}" class="${c === textOverlay.color ? 'active' : ''}"></button>`).join("")}
         </div>
       </div>
-      <button id="textDone" class="primary" style="padding:7px 14px;border:1px solid var(--primary);background:var(--primary);color:white;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;">完成</button>
-      <button id="textDel" style="padding:7px 12px;border:1px solid var(--border);background:var(--surface);border-radius:6px;font-size:13px;color:var(--danger);cursor:pointer;font-family:inherit;">删除</button>
+      <div class="text-editor-actions">
+        <button id="textDone" class="text-action primary">完成</button>
+        <button id="textDel" class="text-action danger">删除</button>
+      </div>
     </div>`;
 
   const input = document.getElementById("textInput");
@@ -1813,7 +1881,11 @@ async function generate() {
   renderLoading();
 
   const size = currentRatio === "portrait" ? "1664x2496" : "2496x1664";
-  const fullPrompt = buildPrompt(userText);
+  const requestedText = extractRequestedPosterText(userText);
+  const visualPrompt = requestedText
+    ? (stripRequestedPosterText(userText) || `${requestedText}主题的儿童海报背景,画面简洁,主体清晰`)
+    : userText;
+  const fullPrompt = buildPrompt(visualPrompt);
 
   try {
     const res = await fetch(API_URL, {
@@ -1842,14 +1914,14 @@ async function generate() {
     const imgUrl = item?.url || (item?.b64_json ? "data:image/png;base64," + item.b64_json : null);
 
     if (!imgUrl) throw new Error("返回数据格式异常");
-    renderPoster(imgUrl, "ai");
+    renderPoster(imgUrl, "ai", requestedText);
     addPromptHistory({
       prompt: userText,
       imageUrl: imgUrl,
       styleId: currentStyle,
       ratio: currentRatio
     });
-    toast("生成成功,已保存到创作记录!");
+    toast(requestedText ? "生成成功,文字已放到画面上,还能继续调整!" : "生成成功,已保存到创作记录!");
   } catch (err) {
     console.error(err);
     canvas.innerHTML = `
