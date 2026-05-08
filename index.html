@@ -1135,12 +1135,8 @@
 
 <script>
 // ============== CONFIG ==============
-const API_URL = "https://api.302.ai/aliyun/api/v1/services/aigc/text2image/image-synthesis";
-const TASK_API_BASE = "https://api.302.ai/aliyun/api/v1/tasks";
-const MODEL = "wan2.2-t2i-flash";
-const MODEL_LABEL = "通义万象 2.2 Flash";
-const TASK_POLL_INTERVAL_MS = 2500;
-const TASK_MAX_POLLS = 72;
+const API_URL = "https://api.302.ai/doubao/images/generations";
+const MODEL = "doubao-seedream-5-0-260128";
 const KEY_STORAGE = "ai_poster_302_key";
 const HISTORY_STORAGE = "ai_poster_prompt_history_v1";
 const HISTORY_LIMIT = 12;
@@ -1508,117 +1504,8 @@ function renderLoading() {
   canvas.innerHTML = `
     <div class="loading">
       <div class="spinner"></div>
-      <div>${MODEL_LABEL} 正在认真作画,请稍等一下...</div>
+      <div>AI 小画家正在认真作画,请稍等一下...</div>
     </div>`;
-}
-
-function setLoadingMessage(message) {
-  const messageEl = canvas.querySelector(".loading div:last-child");
-  if (messageEl) messageEl.textContent = message;
-}
-
-function getWanxiangSize() {
-  return currentRatio === "portrait" ? "960*1440" : "1440*960";
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function readJsonResponse(res) {
-  const text = await res.text();
-  let data = {};
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch (err) {
-    throw new Error(res.ok ? "接口返回的不是 JSON" : `HTTP ${res.status}: ${text.slice(0, 200)}`);
-  }
-  if (!res.ok) {
-    const message = data?.message || data?.error?.message || text.slice(0, 200);
-    throw new Error(`HTTP ${res.status}: ${message}`);
-  }
-  return data;
-}
-
-function getWanxiangTaskId(data) {
-  return data?.output?.task_id || data?.task_id || data?.data?.task_id || data?.id || "";
-}
-
-function getWanxiangTaskStatus(data) {
-  return String(data?.output?.task_status || data?.task_status || data?.status || "").toUpperCase();
-}
-
-function getWanxiangErrorMessage(data) {
-  return data?.output?.message
-    || data?.output?.error_message
-    || data?.message
-    || data?.error?.message
-    || "任务失败";
-}
-
-function extractWanxiangImageUrl(data) {
-  const output = data?.output || data?.data?.output || data;
-  const candidates = [
-    output?.results?.[0]?.url,
-    output?.results?.[0]?.orig_url,
-    output?.results?.[0]?.image_url,
-    output?.images?.[0]?.url,
-    output?.images?.[0]?.image_url,
-    output?.url,
-    output?.image_url,
-    data?.data?.[0]?.url,
-    data?.data?.[0]?.image_url
-  ];
-  return candidates.find(Boolean) || null;
-}
-
-async function createWanxiangTask(apiKey, prompt, size) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + apiKey,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      input: { prompt },
-      parameters: {
-        size,
-        n: 1,
-        prompt_extend: false,
-        watermark: false
-      }
-    })
-  });
-  const data = await readJsonResponse(res);
-  const taskId = getWanxiangTaskId(data);
-  if (!taskId) throw new Error("没有拿到通义万象任务 ID");
-  return taskId;
-}
-
-async function waitForWanxiangImage(apiKey, taskId) {
-  for (let poll = 0; poll < TASK_MAX_POLLS; poll += 1) {
-    const res = await fetch(`${TASK_API_BASE}/${encodeURIComponent(taskId)}`, {
-      method: "GET",
-      headers: { "Authorization": "Bearer " + apiKey }
-    });
-    const data = await readJsonResponse(res);
-    const status = getWanxiangTaskStatus(data);
-    const imgUrl = extractWanxiangImageUrl(data);
-
-    if (["SUCCEEDED", "SUCCESS", "COMPLETED", "FINISHED"].includes(status)) {
-      if (imgUrl) return imgUrl;
-      throw new Error("任务成功但没有返回图片地址");
-    }
-    if (imgUrl && !status) return imgUrl;
-    if (["FAILED", "FAILURE", "CANCELED", "CANCELLED", "REJECTED", "UNKNOWN"].includes(status)) {
-      throw new Error(getWanxiangErrorMessage(data));
-    }
-
-    setLoadingMessage("通义万象已经收到啦,正在排队画图...");
-    await sleep(TASK_POLL_INTERVAL_MS);
-  }
-  throw new Error("等待图片超时,请稍后再试");
 }
 
 function renderPoster(imgUrl, source) {
@@ -1700,7 +1587,7 @@ function drawCanvas() {
   const ratioLabel = currentSource === "gallery"
     ? "竖版 2:3"
     : getRatioLabel(currentRatio);
-  const modelLabel = currentSource === "gallery" ? "本地缓存" : MODEL_LABEL;
+  const modelLabel = currentSource === "gallery" ? "本地缓存" : "Seedream 5";
   const previewThumbs = currentSource === "gallery" ? buildPreviewThumbs() : "";
   const textBlock = textOverlay ? `
     <div class="poster-text" id="posterText" style="
@@ -1925,12 +1812,36 @@ async function generate() {
   sendBtn.disabled = true;
   renderLoading();
 
-  const size = getWanxiangSize();
+  const size = currentRatio === "portrait" ? "1664x2496" : "2496x1664";
   const fullPrompt = buildPrompt(userText);
 
   try {
-    const taskId = await createWanxiangTask(apiKey, fullPrompt, size);
-    const imgUrl = await waitForWanxiangImage(apiKey, taskId);
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        prompt: fullPrompt,
+        n: 1,
+        size: size,
+        response_format: "url",
+        watermark: false
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await res.json();
+    const item = data?.data?.[0];
+    const imgUrl = item?.url || (item?.b64_json ? "data:image/png;base64," + item.b64_json : null);
+
+    if (!imgUrl) throw new Error("返回数据格式异常");
     renderPoster(imgUrl, "ai");
     addPromptHistory({
       prompt: userText,
